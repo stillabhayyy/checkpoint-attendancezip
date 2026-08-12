@@ -501,12 +501,22 @@ async function startLiveness(){
   const ok = await ensureModels();
   if(!ok){ setLivenessMsg('Could not load the face-detection model.', 'Check your internet connection and try again.'); return; }
 
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    setLivenessMsg('Camera unavailable.', 'Open the app in a secure browser preview (HTTPS) and allow camera access.');
+    return;
+  }
   try{ livenessStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}}); }
-  catch(e){ setLivenessMsg('Camera access denied.', 'Allow camera permission to continue.'); return; }
+  catch(e){ console.error('liveness camera unavailable', e); setLivenessMsg('Camera access denied.', 'Allow camera permission, then try again.'); return; }
 
   const video = document.getElementById('livenessVideo');
   video.srcObject = livenessStream;
-  await video.play();
+  try{ await video.play(); }
+  catch(e){
+    console.error('liveness video could not start', e);
+    stopLivenessLoop();
+    setLivenessMsg('Camera preview could not start.', 'Check browser camera permissions, then try again.');
+    return;
+  }
 
   blinkCount = 0; eyesClosed = false; livenessStart = Date.now();
   livenessFinished = false;
@@ -606,12 +616,37 @@ async function startScan(){
   document.getElementById('resultArea').innerHTML = '';
   document.getElementById('scanPanel').classList.remove('hidden');
   setScanStatus('Requesting camera…');
-  try{ scanStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}); }
-  catch(e){ setScanStatus('Camera access denied.'); return; }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    setScanStatus('Camera unavailable — use the HTTPS preview and allow camera access.');
+    return;
+  }
+  try{
+    scanStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+  }catch(e){
+    console.warn('environment camera unavailable, trying default camera', e);
+    try{
+      scanStream = await navigator.mediaDevices.getUserMedia({video:true});
+    }catch(fallbackError){
+      console.error('QR camera unavailable', fallbackError);
+      setScanStatus('Camera access denied — click Scan again after allowing permission.');
+      return;
+    }
+  }
   const video = document.getElementById('scanVideo');
   video.srcObject = scanStream;
-  await video.play();
+  try{ await video.play(); }
+  catch(e){
+    console.error('QR video could not start', e);
+    stopScanLoop();
+    setScanStatus('Camera preview could not start — click Scan again.');
+    return;
+  }
   setScanStatus('Looking for a QR code…');
+  if(typeof jsQR !== 'function'){
+    setScanStatus('QR scanner failed to load — refresh the page and try again.');
+    stopScanLoop();
+    return;
+  }
   scanFrame();
 }
 function setScanStatus(text){ document.getElementById('scanStatusText').textContent = text; }
