@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checkpoint — QR Attendance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<style>
+  :root{
+    --bg:#070c16; --panel:#101a2e; --panel-2:#16223b; --border:#223252;
+    --text:#eceff6; --muted:#8c97b3; --cyan:#37e6e6; --cyan-dim:rgba(55,230,230,.14);
+    --amber:#f5a623; --red:#ff5c5c; --green:#34d399; --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  h1,h2,h3{font-family:'Space Grotesk',sans-serif;margin:0;letter-spacing:-.01em;}
+  .hidden{display:none !important;}
+  .app{max-width:1000px;margin:0 auto;padding:28px 20px 80px;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:34px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand-mark{width:30px;height:30px;border-radius:8px;background:radial-gradient(circle at 35% 35%,var(--cyan),#0c5c5c);box-shadow:0 0 18px var(--cyan-dim);}
+  .brand-name{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:17px;}
+  .brand-sub{color:var(--muted);font-size:12px;margin-top:-2px;}
+  .exit-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:7px 14px;border-radius:8px;font-size:12.5px;cursor:pointer;font-family:'Inter',sans-serif;}
+  .exit-btn:hover{color:var(--text);border-color:var(--cyan);}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:24px;}
+  .panel + .panel{margin-top:16px;}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:720px){.grid-2{grid-template-columns:1fr;}}
+  .role-hero{text-align:center;padding:50px 20px 20px;}
+  .role-hero h1{font-size:34px;line-height:1.15;}
+  .role-hero p{color:var(--muted);font-size:15px;margin-top:10px;max-width:480px;margin-left:auto;margin-right:auto;}
+  .role-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:640px;margin:34px auto 0;}
+  @media(max-width:560px){.role-cards{grid-template-columns:1fr;}}
+  .role-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:26px 20px;cursor:pointer;text-align:left;transition:border-color .15s, transform .15s;}
+  .role-card:hover{border-color:var(--cyan);transform:translateY(-2px);}
+  .role-card .tag{display:inline-block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--cyan);background:var(--cyan-dim);padding:3px 8px;border-radius:99px;margin-bottom:12px;}
+  .role-card h3{font-size:19px;margin-bottom:6px;}
+  .role-card p{color:var(--muted);font-size:13.5px;line-height:1.5;margin:0;}
+  label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px;margin-top:14px;}
+  label:first-of-type{margin-top:0;}
+  input[type=text], input[type=password], input[type=number]{
+    width:100%;background:var(--panel-2);border:1px solid var(--border);border-radius:9px;padding:11px 12px;color:var(--text);font-size:14px;font-family:'Inter',sans-serif;
+  }
+  input:focus{outline:none;border-color:var(--cyan);}
+  .btn{background:var(--cyan);color:#04211f;border:none;padding:12px 18px;border-radius:9px;font-weight:600;font-size:14px;cursor:pointer;font-family:'Inter',sans-serif;}
+  .btn:hover{filter:brightness(1.08);}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .btn-outline{background:none;border:1px solid var(--border);color:var(--text);padding:11px 16px;border-radius:9px;font-size:13.5px;cursor:pointer;font-family:'Inter',sans-serif;}
+  .btn-outline:hover{border-color:var(--cyan);}
+  .btn-danger{background:none;border:1px solid var(--red);color:var(--red);padding:11px 16px;border-radius:9px;font-size:13.5px;cursor:pointer;}
+  .btn-row{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;}
+  .status-line{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--muted);margin-top:12px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;}
+  .dot.on{background:var(--green);box-shadow:0 0 8px var(--green);}
+  .dot.warn{background:var(--amber);box-shadow:0 0 8px var(--amber);}
+  .dot.off{background:var(--red);box-shadow:0 0 8px var(--red);}
+  .cam-wrap{position:relative;width:100%;max-width:380px;aspect-ratio:4/3;margin:16px auto 0;border-radius:var(--radius);overflow:hidden;background:#000;border:1px solid var(--border);}
+  video, canvas.overlay{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;}
+  canvas.overlay{pointer-events:none;}
+  .liveness-ring{position:absolute;inset:0;border:3px solid var(--border);border-radius:var(--radius);pointer-events:none;transition:border-color .2s;}
+  .liveness-ring.ok{border-color:var(--green);}
+  .liveness-ring.warn{border-color:var(--amber);}
+  .liveness-msg{text-align:center;margin-top:14px;font-size:14px;font-weight:500;}
+  .liveness-sub{text-align:center;color:var(--muted);font-size:12.5px;margin-top:4px;}
+  .blink-track{display:flex;justify-content:center;gap:6px;margin-top:12px;}
+  .blink-dot{width:22px;height:6px;border-radius:99px;background:var(--panel-2);border:1px solid var(--border);}
+  .blink-dot.filled{background:var(--cyan);border-color:var(--cyan);}
+  .info-note{font-size:11.5px;color:var(--muted);background:var(--panel-2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-top:16px;line-height:1.5;}
+  .qr-stage{display:flex;flex-direction:column;align-items:center;padding:10px 0 6px;}
+  .qr-ring-wrap{position:relative;width:230px;height:230px;}
+  .qr-ring-wrap svg{position:absolute;inset:0;transform:rotate(-90deg);}
+  .qr-box{position:absolute;inset:22px;background:#fff;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  #qrcode img, #qrcode canvas{width:100% !important;height:100% !important;}
+  .qr-timer{margin-top:14px;font-size:13px;color:var(--muted);}
+  .qr-timer b{color:var(--cyan);}
+  .session-id{margin-top:4px;font-size:11px;color:var(--muted);}
+  table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13.5px;}
+  th{text-align:left;color:var(--muted);font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;padding:8px 10px;border-bottom:1px solid var(--border);}
+  td{padding:9px 10px;border-bottom:1px solid var(--border);}
+  tr:last-child td{border-bottom:none;}
+  .badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600;}
+  .badge.ok{background:rgba(52,211,153,.15);color:var(--green);}
+  .badge.fail{background:rgba(255,92,92,.15);color:var(--red);}
+  .empty-row td{color:var(--muted);text-align:center;padding:22px 0;}
+  .result-box{margin-top:16px;border-radius:var(--radius);padding:16px;border:1px solid var(--border);}
+  .result-box.ok{border-color:var(--green);background:rgba(52,211,153,.06);}
+  .result-box.fail{border-color:var(--red);background:rgba(255,92,92,.06);}
+  .result-box h3{font-size:15px;margin-bottom:4px;}
+  .result-box p{margin:0;color:var(--muted);font-size:13px;line-height:1.5;}
+  .field-row{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px dashed var(--border);}
+  .field-row:last-child{border-bottom:none;}
+  .field-row span:first-child{color:var(--muted);}
+  .section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+  .section-title h2{font-size:16px;}
+  .sub{color:var(--muted);font-size:13px;margin-top:2px;}
+  input[type=range]{width:100%;accent-color:var(--cyan);}
+  .range-val{font-family:'JetBrains Mono',monospace;color:var(--cyan);font-size:13px;}
+  .loader{width:16px;height:16px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--cyan);animation:spin 0.8s linear infinite;display:inline-block;vertical-align:middle;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .node-bg{position:fixed;inset:0;z-index:-1;opacity:.25;pointer-events:none;}
+  .server-note{font-size:11px;color:var(--muted);margin-top:6px;}
+  .server-note b{color:var(--cyan);}
+</style>
+</head>
+<body>
+
+<svg class="node-bg" viewBox="0 0 800 800" preserveAspectRatio="xMidYMid slice">
+  <g stroke="#1a4d4d" stroke-width="1" fill="none">
+    <line x1="80" y1="80" x2="400" y2="400"/><line x1="720" y1="80" x2="400" y2="400"/>
+    <line x1="80" y1="720" x2="400" y2="400"/><line x1="720" y1="720" x2="400" y2="400"/>
+    <line x1="400" y1="80" x2="400" y2="400"/><line x1="400" y1="720" x2="400" y2="400"/>
+    <line x1="80" y1="400" x2="400" y2="400"/><line x1="720" y1="400" x2="400" y2="400"/>
+  </g>
+  <circle cx="400" cy="400" r="14" fill="#37e6e6" opacity=".5"/>
+  <g fill="#5b7ca8">
+    <circle cx="80" cy="80" r="5"/><circle cx="720" cy="80" r="5"/>
+    <circle cx="80" cy="720" r="5"/><circle cx="720" cy="720" r="5"/>
+    <circle cx="400" cy="80" r="5"/><circle cx="400" cy="720" r="5"/>
+    <circle cx="80" cy="400" r="5"/><circle cx="720" cy="400" r="5"/>
+  </g>
+</svg>
+
+<div class="app">
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div>
+        <div class="brand-name">Checkpoint</div>
+        <div class="brand-sub">QR attendance · live face check · geofenced</div>
+      </div>
+    </div>
+    <button class="exit-btn hidden" id="exitBtn">Sign out</button>
+  </div>
+
+  <!-- ROLE SELECT -->
+  <div id="view-role-select">
+    <div class="role-hero">
+      <h1>Attendance in under 3 seconds.</h1>
+      <p>A server-signed QR code refreshes every 3 seconds, students verify with a live face check instead of a photo, and check-ins outside the classroom are rejected automatically.</p>
+    </div>
+    <div class="role-cards">
+      <div class="role-card" onclick="go('faculty-login')">
+        <div class="tag">Faculty</div>
+        <h3>Start a session</h3>
+        <p>Set the classroom location and generate a rotating, single-use QR code for your class.</p>
+      </div>
+      <div class="role-card" onclick="go('student-login')">
+        <div class="tag">Student</div>
+        <h3>Check in</h3>
+        <p>Verify it's really you with a quick live face check, then scan the code on the screen.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FACULTY LOGIN -->
+  <div id="view-faculty-login" class="hidden">
+    <div class="panel" style="max-width:420px;margin:40px auto;">
+      <h2>Faculty sign-in</h2>
+      <p class="sub">Demo login — no real credentials are checked.</p>
+      <label>Full name</label>
+      <input type="text" id="facName" placeholder="Dr. A. Sharma">
+      <label>Course / section</label>
+      <input type="text" id="facCourse" placeholder="CS301 — Section B">
+      <div class="btn-row">
+        <button class="btn" onclick="facultyLogin()">Sign in</button>
+        <button class="btn-outline" onclick="go('role-select')">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STUDENT LOGIN (FACE LIVENESS) -->
+  <div id="view-student-login" class="hidden">
+    <div class="panel" style="max-width:420px;margin:24px auto;">
+      <h2>Student verification</h2>
+      <p class="sub">We check for a live face, not a photo — you'll be asked to blink naturally.</p>
+
+      <div id="studentPreForm">
+        <label>Full name</label>
+        <input type="text" id="stuName" placeholder="Riya Kapoor">
+        <label>Roll number</label>
+        <input type="text" id="stuRoll" placeholder="21CS045">
+        <div class="btn-row">
+          <button class="btn" onclick="startLiveness()">Continue to face check</button>
+          <button class="btn-outline" onclick="go('role-select')">Back</button>
+        </div>
+      </div>
+
+      <div id="livenessBlock" class="hidden">
+        <div class="cam-wrap">
+          <video id="livenessVideo" autoplay muted playsinline></video>
+          <canvas id="livenessOverlay" class="overlay"></canvas>
+          <div class="liveness-ring" id="livenessRing"></div>
+        </div>
+        <div class="liveness-msg" id="livenessMsg">Starting camera…</div>
+        <div class="liveness-sub" id="livenessSub">Look straight at the camera</div>
+        <div class="blink-track">
+          <div class="blink-dot" id="blinkDot"></div>
+        </div>
+        <div class="info-note">Liveness check: looks for a natural blink and continuous face tracking to tell a live face apart from a static photo. This runs in your browser as an academic-grade check for a class project, not a certified biometric system.</div>
+        <div class="btn-row">
+          <button class="btn-outline" onclick="cancelLiveness()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FACULTY DASHBOARD -->
+  <div id="view-faculty-dashboard" class="hidden">
+    <div class="panel">
+      <div class="section-title"><h2 id="facHeading">Session</h2></div>
+      <p class="sub" id="facSub">Set your classroom location once per session, then start check-in.</p>
+
+      <div class="grid-2" style="margin-top:16px;">
+        <div>
+          <label>Classroom geofence radius: <span class="range-val" id="radiusVal">27 m</span></label>
+          <input type="range" min="25" max="30" value="27" id="radiusRange" oninput="document.getElementById('radiusVal').textContent=this.value+' m'">
+          <div class="status-line">
+            <div class="dot" id="locDot"></div>
+            <span id="locStatus">Classroom location not set</span>
+          </div>
+          <div class="btn-row">
+            <button class="btn-outline" onclick="captureClassroomLocation()">Set current location as classroom</button>
+          </div>
+        </div>
+        <div>
+          <label>Session control</label>
+          <div class="status-line">
+            <div class="dot" id="sessionDot"></div>
+            <span id="sessionStatus">No active session</span>
+          </div>
+          <div class="btn-row">
+            <button class="btn" id="startSessionBtn" onclick="startSession()" disabled>Start check-in</button>
+            <button class="btn-danger hidden" id="endSessionBtn" onclick="endSession()">End session</button>
+          </div>
+          <div class="server-note">Token signing and every validation happen on the <b>server</b> — the signing key never reaches this browser.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel hidden" id="qrPanel">
+      <div class="section-title">
+        <h2>Live QR</h2>
+        <span class="sub">Refreshes every 3s · single-use token</span>
+      </div>
+      <div class="qr-stage">
+        <div class="qr-ring-wrap">
+          <svg viewBox="0 0 230 230">
+            <circle cx="115" cy="115" r="106" fill="none" stroke="#223252" stroke-width="6"/>
+            <circle cx="115" cy="115" r="106" fill="none" stroke="#37e6e6" stroke-width="6"
+              stroke-linecap="round" id="decayCircle" stroke-dasharray="666" stroke-dashoffset="0"/>
+          </svg>
+          <div class="qr-box"><div id="qrcode"></div></div>
+        </div>
+        <div class="qr-timer">Expires in <b id="qrCountdown">3.0</b>s</div>
+        <div class="session-id mono" id="sessionIdLabel"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="section-title">
+        <h2>Live check-ins</h2>
+        <span class="sub" id="attendanceCount">0 checked in</span>
+      </div>
+      <p class="sub">Reads live from the server database — any device scanning the QR appears here within a couple seconds.</p>
+      <table>
+        <thead><tr><th>Name</th><th>Roll no.</th><th>Time</th><th>Distance</th><th>Status</th></tr></thead>
+        <tbody id="attendanceBody">
+          <tr class="empty-row"><td colspan="5">No check-ins yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- STUDENT PORTAL -->
+  <div id="view-student-portal" class="hidden">
+    <div class="panel">
+      <h2>Hi, <span id="stuGreetName"></span></h2>
+      <p class="sub">Identity verified via live face check. Point your camera at the classroom screen to scan.</p>
+      <div class="btn-row">
+        <button class="btn" id="scanBtn" onclick="startScan()">Scan classroom QR</button>
+      </div>
+    </div>
+
+    <div class="panel hidden" id="scanPanel">
+      <div class="cam-wrap" style="margin:0 auto;">
+        <video id="scanVideo" autoplay muted playsinline></video>
+        <canvas id="scanCanvas" class="overlay hidden"></canvas>
+      </div>
+      <div class="status-line" style="justify-content:center;" id="scanStatusLine">
+        <span class="loader"></span><span id="scanStatusText">Looking for a QR code…</span>
+      </div>
+      <div class="btn-row" style="justify-content:center;">
+        <button class="btn-outline" onclick="cancelScan()">Cancel</button>
+      </div>
+    </div>
+
+    <div id="resultArea"></div>
+  </div>
+
+</div>
+
+<script>
+/* ===========================================================
+   Navigation
+=========================================================== */
+const views = ['role-select','faculty-login','student-login','faculty-dashboard','student-portal'];
+function go(view){
+  views.forEach(v => document.getElementById('view-'+v).classList.add('hidden'));
+  document.getElementById('view-'+view).classList.remove('hidden');
+  document.getElementById('exitBtn').classList.toggle('hidden', view==='role-select'||view==='faculty-login'||view==='student-login');
+}
+document.getElementById('exitBtn').addEventListener('click', () => {
+  stopTokenPolling(); stopAttendancePolling(); stopLivenessLoop(); stopScanLoop();
+  go('role-select');
+});
+
+async function api(path, opts){
+  const res = await fetch(path, Object.assign({headers:{'Content-Type':'application/json'}}, opts||{}));
+  let body = null;
+  try{ body = await res.json(); }catch(e){}
+  return {ok: res.ok, status: res.status, body};
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ===========================================================
+   FACULTY FLOW
+=========================================================== */
+let classroomLoc = null;
+let radiusMeters = 27;
+
+async function facultyLogin(){
+  const name = document.getElementById('facName').value.trim() || 'Faculty';
+  const course = document.getElementById('facCourse').value.trim() || 'Untitled section';
+  await api('/api/faculty/login', {method:'POST', body: JSON.stringify({name, course})});
+  document.getElementById('facHeading').textContent = course;
+  document.getElementById('facSub').textContent = 'Signed in as ' + name;
+  go('faculty-dashboard');
+}
+
+function captureClassroomLocation(){
+  if(!navigator.geolocation){ setLocStatus('off', 'Geolocation not supported on this device'); return; }
+  setLocStatus('warn', 'Getting current location…');
+  navigator.geolocation.getCurrentPosition(pos => {
+    classroomLoc = {lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy};
+    const wide = pos.coords.accuracy > radiusMeters;
+    setLocStatus(wide ? 'warn' : 'on',
+      `Classroom set (±${Math.round(pos.coords.accuracy)}m accuracy)` +
+      (wide ? ' — reading is wider than the geofence; try outdoors or on a GPS-enabled device' : ''));
+    document.getElementById('startSessionBtn').disabled = false;
+  }, () => setLocStatus('off', 'Location permission denied or unavailable'),
+  {enableHighAccuracy:true, timeout:12000});
+}
+function setLocStatus(state, text){
+  document.getElementById('locDot').className = 'dot ' + state;
+  document.getElementById('locStatus').textContent = text;
+}
+function setSessionStatus(state, text){
+  document.getElementById('sessionDot').className = 'dot ' + state;
+  document.getElementById('sessionStatus').textContent = text;
+}
+
+document.getElementById('radiusRange').addEventListener('change', function(){
+  radiusMeters = parseInt(this.value, 10);
+});
+
+let tokenPollTimer = null, ringTickTimer = null, lastNonce = null;
+
+async function startSession(){
+  if(!classroomLoc) return;
+  const r = await api('/api/session/start', {method:'POST', body: JSON.stringify({
+    lat: classroomLoc.lat, lng: classroomLoc.lng, radius: radiusMeters
+  })});
+  if(!r.ok){ setSessionStatus('off', (r.body && r.body.error) || 'Could not start session'); return; }
+
+  document.getElementById('qrPanel').classList.remove('hidden');
+  document.getElementById('startSessionBtn').classList.add('hidden');
+  document.getElementById('endSessionBtn').classList.remove('hidden');
+  setSessionStatus('on', 'Live — QR refreshing every 3s');
+  document.getElementById('sessionIdLabel').textContent = 'session ' + r.body.sid;
+
+  lastNonce = null;
+  await pollToken();
+  tokenPollTimer = setInterval(pollToken, 500);
+  startAttendancePolling();
+}
+
+async function pollToken(){
+  const r = await api('/api/token');
+  if(!r.ok || !r.body || r.body.error) return;
+  const tok = r.body;
+  if(tok.n !== lastNonce){
+    lastNonce = tok.n;
+    renderQr(tok);
+    startDecayRing(tok.iat, tok.exp);
+  }
+}
+
+function renderQr(tok){
+  document.getElementById('qrcode').innerHTML = '';
+  new QRCode(document.getElementById('qrcode'), {
+    text: JSON.stringify(tok), width: 186, height: 186,
+    colorDark: '#070c16', colorLight: '#ffffff'
+  });
+}
+
+function startDecayRing(iat, exp){
+  clearInterval(ringTickTimer);
+  const circle = document.getElementById('decayCircle');
+  const countdownEl = document.getElementById('qrCountdown');
+  const circumference = 666, duration = exp - iat;
+  ringTickTimer = setInterval(() => {
+    const remain = Math.max(0, exp - Date.now());
+    const frac = remain / duration;
+    circle.setAttribute('stroke-dashoffset', String(circumference * (1-frac)));
+    countdownEl.textContent = (remain/1000).toFixed(1);
+    if(remain <= 0) clearInterval(ringTickTimer);
+  }, 50);
+}
+
+function stopTokenPolling(){
+  clearInterval(tokenPollTimer); clearInterval(ringTickTimer);
+  tokenPollTimer = null;
+}
+
+async function endSession(){
+  stopTokenPolling(); stopAttendancePolling();
+  await api('/api/session/end', {method:'POST'});
+  document.getElementById('qrPanel').classList.add('hidden');
+  document.getElementById('startSessionBtn').classList.remove('hidden');
+  document.getElementById('startSessionBtn').disabled = !classroomLoc;
+  document.getElementById('endSessionBtn').classList.add('hidden');
+  setSessionStatus('off', 'Session ended');
+}
+
+let attendancePollTimer = null;
+function startAttendancePolling(){
+  renderAttendance();
+  attendancePollTimer = setInterval(renderAttendance, 2000);
+}
+function stopAttendancePolling(){ clearInterval(attendancePollTimer); attendancePollTimer = null; }
+
+async function renderAttendance(){
+  const r = await api('/api/attendance');
+  if(!r.ok) return;
+  const records = r.body.records || [];
+  const body = document.getElementById('attendanceBody');
+  if(!records.length){
+    body.innerHTML = '<tr class="empty-row"><td colspan="5">No check-ins yet</td></tr>';
+    document.getElementById('attendanceCount').textContent = '0 checked in';
+    return;
+  }
+  body.innerHTML = records.map(r => `
+    <tr>
+      <td>${escapeHtml(r.name)}</td>
+      <td class="mono">${escapeHtml(r.roll)}</td>
+      <td class="mono">${new Date(r.time).toLocaleTimeString()}</td>
+      <td class="mono">${r.distance != null ? Math.round(r.distance)+'m' : '—'}</td>
+      <td><span class="badge ${r.status==='present'?'ok':'fail'}">${r.status==='present' ? 'Present' : 'Rejected'}</span></td>
+    </tr>`).join('');
+  document.getElementById('attendanceCount').textContent = records.length + ' checked in';
+}
+
+/* ===========================================================
+   STUDENT LOGIN — LIVE FACE LIVENESS
+=========================================================== */
+let stuIdentity = null;
+let livenessStream = null, livenessInterval = null;
+let blinkCount = 0, eyesClosed = false, livenessStart = 0;
+let modelsLoaded = false;
+const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
+
+async function ensureModels(){
+  if(modelsLoaded) return true;
+  try{
+    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+    await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL);
+    modelsLoaded = true;
+    return true;
+  }catch(e){ console.error('face-api model load failed', e); return false; }
+}
+
+async function startLiveness(){
+  const name = document.getElementById('stuName').value.trim();
+  const roll = document.getElementById('stuRoll').value.trim();
+  if(!name || !roll){ alert('Enter your name and roll number first.'); return; }
+  stuIdentity = {name, roll};
+
+  document.getElementById('studentPreForm').classList.add('hidden');
+  document.getElementById('livenessBlock').classList.remove('hidden');
+  setLivenessMsg('Loading face model…', '');
+
+  const ok = await ensureModels();
+  if(!ok){ setLivenessMsg('Could not load the face-detection model.', 'Check your internet connection and try again.'); return; }
+
+  try{ livenessStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}}); }
+  catch(e){ setLivenessMsg('Camera access denied.', 'Allow camera permission to continue.'); return; }
+
+  const video = document.getElementById('livenessVideo');
+  video.srcObject = livenessStream;
+  await video.play();
+
+  blinkCount = 0; eyesClosed = false; livenessStart = Date.now();
+  updateBlinkDots();
+  setLivenessMsg('Detecting your face…', 'Center your face in the frame');
+  livenessInterval = setInterval(runLivenessFrame, 180);
+}
+
+async function runLivenessFrame(){
+  const video = document.getElementById('livenessVideo');
+  if(!video || video.readyState < 2) return;
+  const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+    .withFaceLandmarks(true);
+
+  const ring = document.getElementById('livenessRing');
+  if(!detection){
+    ring.className = 'liveness-ring warn';
+    setLivenessMsg('No face detected', 'Center your face in the frame');
+    return;
+  }
+  ring.className = 'liveness-ring ok';
+  const pts = detection.landmarks.positions;
+  const ear = (eyeAspectRatio(pts, [36,37,38,39,40,41]) + eyeAspectRatio(pts, [42,43,44,45,46,47])) / 2;
+
+  if(ear < 0.20 && !eyesClosed){ eyesClosed = true; }
+  else if(ear > 0.25 && eyesClosed){ eyesClosed = false; blinkCount++; updateBlinkDots(); }
+
+  const elapsed = Date.now() - livenessStart;
+  if(blinkCount < 1){ setLivenessMsg('Face detected', 'Please blink naturally to verify liveness'); }
+  else if(elapsed < 800){ setLivenessMsg('Blink detected ✓', 'Holding for a moment…'); }
+  else { finishLiveness(); }
+}
+
+function eyeAspectRatio(pts, idx){
+  const d = (a,b) => Math.hypot(pts[a].x-pts[b].x, pts[a].y-pts[b].y);
+  const vert = d(idx[1],idx[5]) + d(idx[2],idx[4]);
+  const horiz = d(idx[0],idx[3]);
+  return horiz === 0 ? 0 : vert / (2*horiz);
+}
+function updateBlinkDots(){
+  document.getElementById('blinkDot').className = 'blink-dot' + (blinkCount >= 1 ? ' filled' : '');
+}
+function setLivenessMsg(main, sub){
+  document.getElementById('livenessMsg').textContent = main;
+  document.getElementById('livenessSub').textContent = sub || '';
+}
+function finishLiveness(){
+  stopLivenessLoop();
+  setLivenessMsg('Liveness verified ✓', 'Welcome, ' + stuIdentity.name);
+  setTimeout(() => {
+    document.getElementById('stuGreetName').textContent = stuIdentity.name;
+    document.getElementById('resultArea').innerHTML = '';
+    document.getElementById('scanPanel').classList.add('hidden');
+    go('student-portal');
+    resetLoginForm();
+  }, 700);
+}
+function stopLivenessLoop(){
+  clearInterval(livenessInterval); livenessInterval = null;
+  if(livenessStream){ livenessStream.getTracks().forEach(t => t.stop()); livenessStream = null; }
+}
+function cancelLiveness(){
+  stopLivenessLoop();
+  document.getElementById('livenessBlock').classList.add('hidden');
+  document.getElementById('studentPreForm').classList.remove('hidden');
+}
+function resetLoginForm(){
+  document.getElementById('livenessBlock').classList.add('hidden');
+  document.getElementById('studentPreForm').classList.remove('hidden');
+  document.getElementById('stuName').value = '';
+  document.getElementById('stuRoll').value = '';
+}
+
+/* ===========================================================
+   STUDENT SCAN + GEOFENCE VALIDATION (server-verified)
+=========================================================== */
+let scanStream = null, scanRAF = null;
+
+async function startScan(){
+  document.getElementById('resultArea').innerHTML = '';
+  document.getElementById('scanPanel').classList.remove('hidden');
+  setScanStatus('Requesting camera…');
+  try{ scanStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}); }
+  catch(e){ setScanStatus('Camera access denied.'); return; }
+  const video = document.getElementById('scanVideo');
+  video.srcObject = scanStream;
+  await video.play();
+  setScanStatus('Looking for a QR code…');
+  scanFrame();
+}
+function setScanStatus(text){ document.getElementById('scanStatusText').textContent = text; }
+
+function scanFrame(){
+  const video = document.getElementById('scanVideo');
+  if(!video || video.readyState !== video.HAVE_ENOUGH_DATA){ scanRAF = requestAnimationFrame(scanFrame); return; }
+  const canvas = document.getElementById('scanCanvas');
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const code = jsQR(imageData.data, imageData.width, imageData.height);
+  if(code && code.data){ cancelAnimationFrame(scanRAF); handleScanResult(code.data); return; }
+  scanRAF = requestAnimationFrame(scanFrame);
+}
+function stopScanLoop(){
+  if(scanRAF) cancelAnimationFrame(scanRAF);
+  if(scanStream){ scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+}
+function cancelScan(){ stopScanLoop(); document.getElementById('scanPanel').classList.add('hidden'); }
+
+async function handleScanResult(raw){
+  stopScanLoop();
+  document.getElementById('scanPanel').classList.add('hidden');
+  setScanStatus('Validating…');
+
+  let token;
+  try{ token = JSON.parse(raw); }
+  catch(e){ return renderResult(false, 'Not a valid check-in code', 'This QR code does not match the attendance token format.'); }
+
+  if(!navigator.geolocation){
+    return renderResult(false, 'Location unavailable', 'Your device does not support location — required for the classroom geofence.');
+  }
+
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const r = await api('/api/scan', {method:'POST', body: JSON.stringify({
+      token, name: stuIdentity.name, roll: stuIdentity.roll,
+      lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy
+    })});
+    const body = r.body || {};
+    if(body.ok){
+      renderResult(true, 'Attendance marked',
+        `You're ${Math.round(body.distance)}m from the classroom anchor — within the ${Math.round(body.radius)}m geofence.`,
+        {dist: body.distance, radius: body.radius});
+    }else{
+      renderResult(false, humanTitle(body.reason), body.message || 'Check-in was rejected.',
+        (body.distance != null) ? {dist: body.distance, radius: body.radius} : null);
+    }
+  }, () => {
+    renderResult(false, 'Location permission denied', 'Location access is required to confirm you are in the classroom.');
+  }, {enableHighAccuracy:true, timeout:12000});
+}
+
+function humanTitle(reason){
+  return ({
+    expired: 'Code expired', bad_signature: 'Signature mismatch', replay: 'Code already used',
+    no_session: 'Session not found', no_location: 'Location unavailable', geofence: 'Outside classroom geofence'
+  })[reason] || 'Check-in rejected';
+}
+
+function renderResult(ok, title, msg, extra){
+  const el = document.getElementById('resultArea');
+  el.innerHTML = `
+    <div class="panel">
+      <div class="result-box ${ok?'ok':'fail'}">
+        <h3>${ok ? '✓ ' : '✕ '}${escapeHtml(title)}</h3>
+        <p>${escapeHtml(msg)}</p>
+        ${extra ? `
+        <div style="margin-top:12px;">
+          <div class="field-row"><span>Distance from classroom</span><span class="mono">${Math.round(extra.dist)} m</span></div>
+          <div class="field-row"><span>Allowed radius</span><span class="mono">${Math.round(extra.radius)} m</span></div>
+        </div>` : ''}
+      </div>
+      <div class="btn-row"><button class="btn" onclick="startScan()">Scan again</button></div>
+    </div>`;
+}
+
+go('role-select');
+</script>
+</body>
+</html>
