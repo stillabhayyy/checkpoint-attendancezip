@@ -474,6 +474,7 @@ async function renderAttendance(){
 let stuIdentity = null;
 let livenessStream = null, livenessInterval = null;
 let blinkCount = 0, eyesClosed = false, livenessStart = 0;
+let livenessFinished = false, livenessTransitionTimer = null;
 let modelsLoaded = false;
 const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
 
@@ -508,16 +509,26 @@ async function startLiveness(){
   await video.play();
 
   blinkCount = 0; eyesClosed = false; livenessStart = Date.now();
+  livenessFinished = false;
   updateBlinkDots();
   setLivenessMsg('Detecting your face…', 'Center your face in the frame');
   livenessInterval = setInterval(runLivenessFrame, 180);
 }
 
 async function runLivenessFrame(){
+  if(livenessFinished) return;
   const video = document.getElementById('livenessVideo');
   if(!video || video.readyState < 2) return;
-  const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
-    .withFaceLandmarks(true);
+  let detection;
+  try{
+    detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+      .withFaceLandmarks(true);
+  }catch(e){
+    console.error('face detection failed', e);
+    stopLivenessLoop();
+    setLivenessMsg('Face check stopped', 'Please try the verification again.');
+    return;
+  }
 
   const ring = document.getElementById('livenessRing');
   if(!detection){
@@ -552,14 +563,17 @@ function setLivenessMsg(main, sub){
   document.getElementById('livenessSub').textContent = sub || '';
 }
 function finishLiveness(){
+  if(livenessFinished) return;
+  livenessFinished = true;
   stopLivenessLoop();
   setLivenessMsg('Liveness verified ✓', 'Welcome, ' + stuIdentity.name);
-  setTimeout(() => {
+  livenessTransitionTimer = setTimeout(() => {
     document.getElementById('stuGreetName').textContent = stuIdentity.name;
     document.getElementById('resultArea').innerHTML = '';
     document.getElementById('scanPanel').classList.add('hidden');
     go('student-portal');
     resetLoginForm();
+    startScan();
   }, 700);
 }
 function stopLivenessLoop(){
@@ -567,6 +581,11 @@ function stopLivenessLoop(){
   if(livenessStream){ livenessStream.getTracks().forEach(t => t.stop()); livenessStream = null; }
 }
 function cancelLiveness(){
+  if(livenessTransitionTimer){
+    clearTimeout(livenessTransitionTimer);
+    livenessTransitionTimer = null;
+  }
+  livenessFinished = false;
   stopLivenessLoop();
   document.getElementById('livenessBlock').classList.add('hidden');
   document.getElementById('studentPreForm').classList.remove('hidden');
